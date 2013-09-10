@@ -55,15 +55,19 @@ int binomial(int n, double p)
 	return c;
 }
 
-Conf::Conf(string ftx, string fty, int epc=0, int bs=0, int nh=0, int k=1)
+Conf::Conf(string ftx, string fty, int epc, int bs, int *hls, int k, double lr, int n_ly, int n_lb)
 {
 	f_train_x = ftx;
 	f_train_y = fty;
 	epoch = epc;
 	batch_size = bs;
-	n_h = nh;
+	hidden_layer_size = hls;
 	cd_k = k;
+	learning_rate = lr;
+	n_layers = n_ly;
+	n_labels = n_lb;
 }
+Conf::~Conf(){}
 Dataset::Dataset(Conf conf)
 {
 
@@ -158,11 +162,11 @@ Dataset::~Dataset()
 	vector<vector<double> >().swap(X);
 	vector<double>().swap(Y);
 }
-RBM::RBM(Conf conf, Dataset ds, double **w, double *hb, double *vb)
+RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb)
 {
-	n_samples = ds.N;
-	n_visible = ds.n_f;
-	n_hidden = conf.n_h;
+	n_samples = N;
+	n_visible = n_f;
+	n_hidden = n_h;
 
 	if(w == NULL)
 	{
@@ -198,7 +202,49 @@ RBM::RBM(Conf conf, Dataset ds, double **w, double *hb, double *vb)
 
 
 }
-void RBM::train(vector<double> x, double gamma, int cd_k)
+void RBM::activate_hidden(double *v_prob, double *h_prob, int *h_state, int n_visible, int n_hidden)
+{	
+	//v->h
+	if(h_prob == NULL)
+		h_prob = new double[n_hidden];
+	if(h_state == NULL)
+		h_state = new int[n_hidden];	
+	for(int i=0; i<n_hidden; i++)
+	{
+		double vh_prob = 0;
+		for(int j=0; j<n_visible; j++)
+		{
+			// prob or state?
+			vh_prob += v_prob[j] * W[i][j];
+		}
+		vh_prob += hbias[i];
+		h_prob[i] = sigmoid(vh_prob);
+		h_state[i] = binomial(1, h_prob[i]);
+	}
+
+}
+void RBM::activate_visible(int *h_state, double *v_prob, int *v_state, int n_hidden, int n_visible)
+{	
+	//h->v
+	if(v_prob == NULL)
+		v_prob = new double[n_visible];
+	if(v_state == NULL)
+		v_state = new int[n_visible];	
+
+	for(int i=0; i<n_visible; i++)
+	{
+		double hv_prob = 0;
+		for(int j=0; j<n_hidden; j++)
+		{
+			hv_prob += h_state[j] * W[j][i];
+		}
+		hv_prob += vbias[i];
+		v_prob[i] = sigmoid(hv_prob);
+		v_state[i] = binomial(1, v_prob[i]);
+	}	
+}
+
+void RBM::train(double *x, double gamma, int cd_k)
 {
 	double *pos_h_prob = new double[n_hidden];
 	int *pos_h_state = new int[n_hidden];
@@ -269,7 +315,6 @@ void RBM::train(vector<double> x, double gamma, int cd_k)
 	}
 
 
-
 	delete[] pos_h_prob;
 	delete[] pos_h_state;
 	delete[] neg_v_prob;
@@ -287,4 +332,82 @@ RBM::~RBM()
 	delete[] vbias;
 }
 
+DBN::DBN(Dataset data, Conf conf)
+{
+	n_samples = data.N;
+	n_features = data.n_f;
+	hidden_layer_size = conf.hidden_layer_size;
+	n_layers = conf.n_layers;
+	n_labels = conf.n_labels;
 
+	rbm_layers = new RBM*[n_layers];
+	for(int i=0; i<n_layers; i++)
+	{
+		if(i == 0)
+		{
+			rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL);
+		}
+		else
+		{
+			rbm_layers[i] = new RBM(n_samples, hidden_layer_size[i-1], hidden_layer_size[i],  NULL, NULL, NULL);
+		}
+	}
+	
+}
+void DBN::pretrain(Dataset data, Conf conf)
+{
+	cout << "Layer-wise pre-training begin: " <<endl;
+	double *rbm_input;
+	double *pre_rbm_input;
+	int pre_size;
+	for(int l=0; l<n_layers; l++)
+	{
+		cout << "Layer: " << (l+1) << endl;
+		for(int epoch=0; epoch<conf.epoch; epoch++)
+		{
+			cout << "Layer: " << (l+1) << ", Epoch: " << epoch << endl;
+			for(int i=0; i<n_samples; i++)
+			{
+				// rbm v
+				// some x may be computed many times
+				// which may be replaced by DP algoritham
+				for(int j=0; j<=l; j++)
+				{
+					if(j == 0)
+					{
+						rbm_input = new double[n_features];
+						for(int f=0; f<n_features; f++)
+							rbm_input[f] = data.X[i][f];
+					}
+					else
+					{
+						if(j == 1)
+							pre_size = n_features;
+						else
+							pre_size = hidden_layer_size[j-2];
+						pre_rbm_input = new double[pre_size];
+						
+						for(int f=0; f<pre_size; f++)
+							pre_rbm_input[f] = rbm_input[f];
+						delete[] rbm_input;
+
+						rbm_input = new double[hidden_layer_size[j-1]];
+						rbm_layers[j-1]->activate_hidden(pre_rbm_input, rbm_input, NULL, pre_size, hidden_layer_size[j-1]);
+						delete[] pre_rbm_input;
+					}
+
+
+				}
+				rbm_layers[l]->train(rbm_input, conf.learning_rate, conf.cd_k);
+
+			}
+		}
+
+	}
+}
+DBN::~DBN()
+{
+	for(int i=0; i<n_layers; i++)
+		delete rbm_layers[i];
+	delete[] rbm_layers;
+}

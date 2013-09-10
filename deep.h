@@ -27,10 +27,14 @@ class Conf
 
 		int epoch;
 		int batch_size;
-		int n_h;
+		int *hidden_layer_size;
 		int cd_k;
+		double learning_rate;
+		int n_layers;
+		int n_labels; //num of classes
 
-		Conf(string, string, int, int, int, int);
+		Conf(string, string, int, int, int*, int, double, int, int);
+		~Conf();
 
 };
 
@@ -58,12 +62,29 @@ class RBM
 		double *hbias;
 		double *vbias;
 
-		RBM(Conf, Dataset, double**, double*, double*);
+		RBM(int, int, int,  double**, double*, double*);
 		~RBM();
-		void train(vector<double>, double, int);
+		void train(double*, double, int);
+		void activate_hidden(double*, double*, int*, int, int);
+		void activate_visible(int*, double*, int*, int, int);
 };
 
+class DBN
+{
+	public:
+		int n_samples;
+		int n_features;
+		int n_layers;
+		int n_labels;
+		int *hidden_layer_size;
+		RBM **rbm_layers;
+		DBN(Dataset, Conf);
+		~DBN();
+		void pretrain(Dataset, Conf);
+		void finetune(int*, int*, double, int);
+		void predict(int*, double*);
 
+};
 #endif //DEEP_H
 
 
