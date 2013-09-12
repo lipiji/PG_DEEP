@@ -61,6 +61,7 @@ class RBM
 		double **W;
 		double *hbias;
 		double *vbias;
+        double error;
 
 		RBM(int, int, int,  double**, double*, double*);
 		~RBM();

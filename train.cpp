@@ -7,7 +7,7 @@ int main(int argc, const char *argv[])
 {
 	string ftx = "./data/test_x.txt";
 	string fty = "./data/test_y.txt";
-	int epoch = 100;
+	int epoch = 10;
 	int batch_size = 0;
 	double gamma = 0.1; // learning rate
 	int k = 1; //Contrastive Divergence k
