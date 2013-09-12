@@ -343,6 +343,84 @@ RBM::~RBM()
     delete[] vbias;
 }
 
+LR::LR(Dataset data, Conf conf)
+{
+    n_samples = data.N;
+    n_features = data.n_f;
+    n_labels = conf.n_labels;
+
+    W = new double*[n_labels];
+    for(int i=0; i<n_labels; i++)
+        W[i] = new double[n_features];
+    b = new double[n_labels];
+
+    for(int i=0; i<n_labels; i++)
+    {
+        for(int j=0; j<n_features; j++)
+            W[i][j] = 0;
+        b[i] = 0;
+    }
+}
+LR::~LR()
+{
+    for(int i=0; i<n_labels; i++)
+        delete W[i];
+    delete[] W;
+    delete[] b;
+}
+void LR::train(double *x, int *y, double gamma)
+{
+    double *p_y_given_x = new double[n_labels];
+    double *dy = new double[n_labels];
+
+    for(int i=0; i<n_labels; i++) 
+    {
+        p_y_given_x[i] = 0;
+        for(int j=0; j<n_features; j++) 
+        {
+            p_y_given_x[i] += W[i][j] * x[j];
+        }
+        p_y_given_x[i] += b[i];
+    }
+    softmax(p_y_given_x);
+
+    for(int i=0; i<n_labels; i++) 
+    {
+        dy[i] = (y[i]==i ? 1:0) - p_y_given_x[i];
+
+        for(int j=0; j<n_features; j++) 
+        {
+            W[i][j] += gamma * dy[i] * x[j] / n_samples;
+        }
+
+        b[i] += gamma * dy[i] / n_samples;
+    }
+    delete[] p_y_given_x;
+    delete[] dy;
+}
+void LR::softmax(double *x)
+{
+    double sum = 0.0;
+    for(int i=0; i<n_labels; i++) 
+    {
+        x[i] = exp(x[i]);
+        sum += x[i];
+    } 
+
+    for(int i=0; i<n_labels; i++) 
+        x[i] /= sum;
+}
+void LR::predict(double *x, double *y)
+{
+    for(int i=0; i<n_labels; i++) {
+        y[i] = 0;
+        for(int j=0; j<n_features; j++) {
+            y[i] += W[i][j] * x[j];
+        }
+        y[i] += b[i];
+    }
+    softmax(y);
+}
 DBN::DBN(Dataset data, Conf conf)
 {
     n_samples = data.N;

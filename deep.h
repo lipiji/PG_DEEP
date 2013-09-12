@@ -69,7 +69,21 @@ class RBM
 		void activate_hidden(double*, double*, int*, int, int);
 		void activate_visible(int*, double*, int*, int, int);
 };
+class LR
+{
+    public:
+        int n_samples;
+        int n_features;
+        int n_labels;
+        double **W;
+        double *b;
+        LR(Dataset, Conf);
+        ~LR();
+        void train(double*, int*, double);
+        void softmax(double*);
+        void predict(double*, double*);
 
+};
 class DBN
 {
 	public:
