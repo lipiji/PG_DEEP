@@ -78,6 +78,7 @@ class LR
         double **W;
         double *b;
         LR(Dataset, Conf);
+        LR(int, int, int);
         ~LR();
         void train(double*, int*, double);
         void softmax(double*);
@@ -93,11 +94,12 @@ class DBN
 		int n_labels;
 		int *hidden_layer_size;
 		RBM **rbm_layers;
+        LR *lr_layer;
 		DBN(Dataset, Conf);
 		~DBN();
 		void pretrain(Dataset, Conf);
-		void finetune(int*, int*, double, int);
-		void predict(int*, double*);
+		void finetune(Dataset, Conf);
+		int predict(double*, double*, int);
 
 };
 #endif //DEEP_H

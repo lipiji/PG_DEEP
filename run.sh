@@ -1,0 +1,1 @@
+./train > log.txt

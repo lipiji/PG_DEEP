@@ -64,6 +64,22 @@ double square_error(double *v1, double *v2, int size)
     return error;
 }
 
+int max_i_(double *x, int l)
+{
+    double max_v = x[0];
+    double max_i = 0;
+    for(int i=0; i<l; i++)
+    {
+        if(x[i] > max_v)
+        {
+            max_v = x[i];
+            max_i = i;
+        }
+    }
+    return max_i;
+}
+
+
 Conf::Conf(string ftx, string fty, int epc, int bs, int *hls, int k, double lr, int n_ly, int n_lb)
 {
     f_train_x = ftx;
@@ -361,6 +377,25 @@ LR::LR(Dataset data, Conf conf)
         b[i] = 0;
     }
 }
+LR::LR(int N, int n_f, int n_lb)
+{
+    n_samples = N;
+    n_features = n_f;
+    n_labels = n_lb;
+
+    W = new double*[n_labels];
+    for(int i=0; i<n_labels; i++)
+        W[i] = new double[n_features];
+    b = new double[n_labels];
+
+    for(int i=0; i<n_labels; i++)
+    {
+        for(int j=0; j<n_features; j++)
+            W[i][j] = 0;
+        b[i] = 0;
+    }
+}
+
 LR::~LR()
 {
     for(int i=0; i<n_labels; i++)
@@ -442,12 +477,15 @@ DBN::DBN(Dataset data, Conf conf)
         }
     }
 
+    //logistic layer
+    lr_layer = new LR(n_samples, hidden_layer_size[n_layers-1], n_labels);
+
 }
 void DBN::pretrain(Dataset data, Conf conf)
 {
     cout << "Layer-wise pre-training begin: " <<endl;
-    double *rbm_input;
-    double *pre_rbm_input;
+    double *rbm_input = NULL;
+    double *pre_rbm_input = NULL;
     int pre_size;
     for(int l=0; l<n_layers; l++)
     {
@@ -493,9 +531,112 @@ void DBN::pretrain(Dataset data, Conf conf)
 
     }
 }
+void DBN::finetune(Dataset data, Conf conf)
+{
+    cout << "Fine-tuning..." << endl;
+    // BP fine-tuning method
+    // First, train the LR model without fine-tuning
+    double *layer_input = NULL;
+    double *pre_layer_input = NULL;
+    int pre_size;
+
+    for(int epoch=0; epoch<conf.epoch; epoch++)
+    {
+        for(int i=0; i<n_samples; i++)
+        {
+            int *train_y = new int[n_labels];
+            for(int yi=0; yi<n_labels; yi++)
+                train_y[yi] = 0;
+            train_y[int(data.Y[i])] = 1;
+            // some x may be computed many times
+            // which may be replaced by DP algoritham
+            for(int j=0; j<n_layers; j++)
+            {
+                if(j == 0)
+                {
+                    pre_size = n_features;
+                    pre_layer_input = new double[pre_size];
+                    for(int f=0; f<pre_size; f++)
+                        pre_layer_input[f] = data.X[i][f];
+                }
+                else
+                {
+                    pre_size = hidden_layer_size[j-1];
+                    pre_layer_input = new double[pre_size];
+
+                    for(int f=0; f<pre_size; f++)
+                        pre_layer_input[f] = layer_input[f];
+                    delete[] layer_input;
+
+                }
+                layer_input = new double[hidden_layer_size[j]];
+                rbm_layers[j]->activate_hidden(pre_layer_input, layer_input, NULL, pre_size, hidden_layer_size[j]);
+                delete[] pre_layer_input;
+
+            }
+
+            lr_layer->train(layer_input, train_y, conf.learning_rate);
+        }
+    }
+    cout << "Fine-tuning done." << endl;
+}
+int DBN::predict(double *x, double *pred_y, int true_label)
+{ 
+    double *layer_input = NULL;
+    double *pre_layer_input = NULL;
+    int pre_size;
+
+    // some x may be computed many times
+    // which may be replaced by DP algoritham
+    for(int j=0; j<n_layers; j++)
+    {
+        if(j == 0)
+        {
+            pre_size = n_features;
+            pre_layer_input = new double[pre_size];
+            for(int f=0; f<pre_size; f++)
+                pre_layer_input[f] = x[f];
+        }
+        else
+        {
+            pre_size = hidden_layer_size[j-1];
+            pre_layer_input = new double[pre_size];
+
+            for(int f=0; f<pre_size; f++)
+                pre_layer_input[f] = layer_input[f];
+            delete[] layer_input;
+
+        }
+        layer_input = new double[hidden_layer_size[j]];
+        rbm_layers[j]->activate_hidden(pre_layer_input, layer_input, NULL, pre_size, hidden_layer_size[j]);
+        delete[] pre_layer_input;
+
+    }
+
+    for(int i=0; i<lr_layer->n_labels; i++)
+    {
+        pred_y[i] = 0;
+        for(int j=0; j<lr_layer->n_features; j++)
+        {
+            pred_y[i] += lr_layer->W[i][j] * layer_input[j];
+        }
+        pred_y[i] += lr_layer->b[i];
+    }
+    lr_layer->softmax(pred_y);
+    /*
+       cout <<true_label<<": ";
+       for(int i=0; i<lr_layer->n_labels; i++)
+       cout<<pred_y[i]<<" ";
+       cout<<max_i_(pred_y, lr_layer->n_labels)<<"?????"<<true_label<<endl;
+       */
+    if(max_i_(pred_y, lr_layer->n_labels) == true_label)
+        return 1;
+    return 0;
+}
 DBN::~DBN()
 {
     for(int i=0; i<n_layers; i++)
         delete rbm_layers[i];
     delete[] rbm_layers;
+    delete lr_layer;
 }
