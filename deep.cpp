@@ -80,7 +80,7 @@ int max_i_(double *x, int l)
 }
 
 
-Conf::Conf(string ftx, string fty, int epc, int bs, int *hls, int k, double lr, int n_ly, int n_lb)
+Conf::Conf(string ftx, string fty, int epc, int bs, int *hls, int k, double lr, int n_ly, int n_lb, double lbd)
 {
     f_train_x = ftx;
     f_train_y = fty;
@@ -91,6 +91,7 @@ Conf::Conf(string ftx, string fty, int epc, int bs, int *hls, int k, double lr, 
     learning_rate = lr;
     n_layers = n_ly;
     n_labels = n_lb;
+    lamda = lbd;
 }
 Conf::~Conf(){}
 Dataset::Dataset(Conf conf)
@@ -364,6 +365,7 @@ LR::LR(Dataset data, Conf conf)
     n_samples = data.N;
     n_features = data.n_f;
     n_labels = conf.n_labels;
+    lamda = conf.lamda;
 
     W = new double*[n_labels];
     for(int i=0; i<n_labels; i++)
@@ -377,11 +379,12 @@ LR::LR(Dataset data, Conf conf)
         b[i] = 0;
     }
 }
-LR::LR(int N, int n_f, int n_lb)
+LR::LR(int N, int n_f, int n_lb, double lbd)
 {
     n_samples = N;
     n_features = n_f;
     n_labels = n_lb;
+    lamda = lbd;
 
     W = new double*[n_labels];
     for(int i=0; i<n_labels; i++)
@@ -405,32 +408,32 @@ LR::~LR()
 }
 void LR::train(double *x, int *y, double gamma)
 {
-    double *p_y_given_x = new double[n_labels];
+    double *h_theta_x = new double[n_labels];
     double *dy = new double[n_labels];
 
     for(int i=0; i<n_labels; i++) 
     {
-        p_y_given_x[i] = 0;
+        h_theta_x[i] = 0;
         for(int j=0; j<n_features; j++) 
         {
-            p_y_given_x[i] += W[i][j] * x[j];
+            h_theta_x[i] += W[i][j] * x[j];
         }
-        p_y_given_x[i] += b[i];
+        h_theta_x[i] += b[i];
     }
-    softmax(p_y_given_x);
+    softmax(h_theta_x);
 
     for(int i=0; i<n_labels; i++) 
     {
-        dy[i] = (y[i]==i ? 1:0) - p_y_given_x[i];
+        dy[i] = (y[i]==1 ? 1:0) - h_theta_x[i];
 
         for(int j=0; j<n_features; j++) 
         {
-            W[i][j] += gamma * dy[i] * x[j] / n_samples;
+            W[i][j] -= gamma * (-1*dy[i] * x[j] + lamda * W[i][j]);
         }
 
-        b[i] += gamma * dy[i] / n_samples;
+        b[i] += gamma * dy[i];
     }
-    delete[] p_y_given_x;
+    delete[] h_theta_x;
     delete[] dy;
 }
 void LR::softmax(double *x)
@@ -447,9 +450,11 @@ void LR::softmax(double *x)
 }
 void LR::predict(double *x, double *y)
 {
-    for(int i=0; i<n_labels; i++) {
+    for(int i=0; i<n_labels; i++) 
+    {
         y[i] = 0;
-        for(int j=0; j<n_features; j++) {
+        for(int j=0; j<n_features; j++) 
+        {
             y[i] += W[i][j] * x[j];
         }
         y[i] += b[i];
@@ -478,7 +483,7 @@ DBN::DBN(Dataset data, Conf conf)
     }
 
     //logistic layer
-    lr_layer = new LR(n_samples, hidden_layer_size[n_layers-1], n_labels);
+    lr_layer = new LR(n_samples, hidden_layer_size[n_layers-1], n_labels, conf.lamda);
 
 }
 void DBN::pretrain(Dataset data, Conf conf)
@@ -540,8 +545,9 @@ void DBN::finetune(Dataset data, Conf conf)
     double *pre_layer_input = NULL;
     int pre_size;
 
-    for(int epoch=0; epoch<conf.epoch; epoch++)
+    for(int epoch=0; epoch<1; epoch++)
     {
+        //ofstream fout("./model/x.txt");
         for(int i=0; i<n_samples; i++)
         {
             int *train_y = new int[n_labels];
@@ -574,9 +580,16 @@ void DBN::finetune(Dataset data, Conf conf)
                 delete[] pre_layer_input;
 
             }
+            ///////////
+           // for(int ii=0; ii<hidden_layer_size[n_layers-1]; ii++)
+             //   fout << layer_input[ii] << " ";
+            //fout << int(data.Y[i]) << endl;
+            /////////
 
             lr_layer->train(layer_input, train_y, conf.learning_rate);
         }
+        ////////////
+        //fout << flush;fout.close();
     }
     cout << "Fine-tuning done." << endl;
 }

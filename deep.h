@@ -32,8 +32,8 @@ class Conf
 		double learning_rate;
 		int n_layers;
 		int n_labels; //num of classes
-
-		Conf(string, string, int, int, int*, int, double, int, int);
+        double lamda; // penalty factor
+		Conf(string, string, int, int, int*, int, double, int, int, double);
 		~Conf();
 
 };
@@ -75,10 +75,11 @@ class LR
         int n_samples;
         int n_features;
         int n_labels;
+        double lamda;
         double **W;
         double *b;
         LR(Dataset, Conf);
-        LR(int, int, int);
+        LR(int, int, int, double);
         ~LR();
         void train(double*, int*, double);
         void softmax(double*);

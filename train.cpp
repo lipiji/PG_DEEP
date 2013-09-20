@@ -15,8 +15,9 @@ int main(int argc, const char *argv[])
     int hls[] = {400, 400, 100};
     int n_layers = sizeof(hls) / sizeof(hls[0]);
     int n_lables = 10;
+    double lbd = 0.1;
 
-    Conf conf(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables);
+    Conf conf(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables, lbd);
     Dataset data(conf);
 
     /* test rbm
@@ -44,6 +45,7 @@ int main(int argc, const char *argv[])
        }*/	
 
     //test lr
+
     /*
        LR lr(data, conf);
        for(int i=0; i<epoch; i++)
@@ -58,6 +60,8 @@ int main(int argc, const char *argv[])
        y[int(data.Y[j])] = 1;
 
        lr.train(x, y, gamma);
+       delete[] x;
+       delete[] y;
        }
        }
        for(int j=0; j<data.N; j++)
@@ -75,6 +79,7 @@ int main(int argc, const char *argv[])
        delete[] y;
        }
        */
+
     DBN dbn(data, conf);
     dbn.pretrain(data, conf);
     for(int i=0; i<n_layers; i++)
@@ -101,7 +106,7 @@ int main(int argc, const char *argv[])
     ftx = "./data/train_x.txt";
     fty = "./data/train_y.txt";
 
-    Conf conf_(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables);
+    Conf conf_(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables, lbd);
     Dataset data_(conf_);
 
 
@@ -116,7 +121,7 @@ int main(int argc, const char *argv[])
 
         if(dbn.predict(x, y, true_label) == 1)
             acc_num++;
-        
+
         cout << j <<": Accuracy=" << acc_num/(j+1) <<endl;
     }
 
