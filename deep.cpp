@@ -183,6 +183,95 @@ Dataset::Dataset(Conf conf)
     }
 
 }
+void Dataset::reloadx(Conf conf, char* xl, vector<vector<double> >& xlayer)
+{
+
+    N = 0;
+    n_f = 0;
+    batch_index = 0;
+
+    if(conf.batch_size >= 0)
+    {
+        int Nx = 0;
+        int Ny = 0;
+        int Nf = 0; // dim of x
+
+        //read the label file
+        ifstream fin_y(conf.f_train_y.c_str());
+        if(!fin_y) 
+        {   
+            cout << "Error opening " << conf.f_train_y << " for input" << endl;
+            exit(-1);
+        }
+        else
+        {
+            string s;
+            while(getline(fin_y, s))
+            {	
+                Y.push_back(atof(s.c_str()));
+                if(conf.batch_size > 0 && Ny >= conf.batch_size)
+                    break;
+                ++Ny;
+            }
+        }
+        fin_y.close();
+
+        // read the x file
+        ifstream fin_x(xl);
+        if(!fin_x) 
+        {   
+            cout << "Error opening " << conf.f_train_x << " for input" << endl;
+            exit(-1);
+        }
+        else
+        {
+            string s;
+            while(getline(fin_x, s))
+            {	
+                Nf = 0;
+                vector<double> x;
+                const char *split = " \t";
+
+                char *line=new char[s.size()+1];
+                strcpy(line, s.c_str());
+                char *p = strtok(line, split);
+                x.push_back(atof(p));
+
+                Nf = 1;
+                while(1)
+                {
+                    p = strtok(NULL, split);
+                    if(p == NULL || *p == '\n')
+                        break;
+                    x.push_back(atof(p));
+                    ++Nf;
+                }
+                xlayer.push_back(x);
+                n_f = Nf;
+
+                vector<double>().swap(x);
+                if(conf.batch_size > 0 && Nx >= conf.batch_size)
+                    break;
+                ++Nx;
+            }
+        }
+        fin_x.close();
+
+        if(Nx == Ny)
+        {
+            N = Nx;
+            n_f = Nf;
+        }
+        else
+        {
+            cout << "Dataset error: size(x) != size(y)." << endl;
+            exit(-1);
+        }
+
+        cout << "Data loaded: size=" << N <<", dim=" << n_f << endl;
+    }
+
+}
 Dataset::~Dataset()
 {
     vector<vector<double> >().swap(X);
@@ -257,7 +346,6 @@ void RBM::activate_visible(int *h_state, double *v_prob, int *v_state, int n_hid
         v_prob = new double[n_visible];
     if(v_state == NULL)
         v_state = new int[n_visible];	
-
     for(int i=0; i<n_visible; i++)
     {
         double hv_prob = 0;
@@ -354,7 +442,7 @@ void RBM::train(double *x, double gamma, int cd_k)
 RBM::~RBM()
 {
     for(int i=0; i < n_hidden; i++)
-        delete W[i];
+        delete[] W[i];
     delete[] W;
     delete[] hbias;
     delete[] vbias;
@@ -402,7 +490,7 @@ LR::LR(int N, int n_f, int n_lb, double lbd)
 LR::~LR()
 {
     for(int i=0; i<n_labels; i++)
-        delete W[i];
+        delete[] W[i];
     delete[] W;
     delete[] b;
 }
@@ -468,6 +556,8 @@ DBN::DBN(Dataset data, Conf conf)
     hidden_layer_size = conf.hidden_layer_size;
     n_layers = conf.n_layers;
     n_labels = conf.n_labels;
+    lamda = conf.lamda;
+    alpha = conf.learning_rate;
 
     rbm_layers = new RBM*[n_layers];
     for(int i=0; i<n_layers; i++)
@@ -489,52 +579,100 @@ DBN::DBN(Dataset data, Conf conf)
 void DBN::pretrain(Dataset data, Conf conf)
 {
     cout << "Layer-wise pre-training begin: " <<endl;
+
+    char str[] = "./model/x_layer_";
+    char x_l[256];
+    vector<vector<double> > xlayer;
+
     double *rbm_input = NULL;
     double *pre_rbm_input = NULL;
     int pre_size;
     for(int l=0; l<n_layers; l++)
     {
+        if(l > 0)
+            data.reloadx(conf, x_l, xlayer);
         cout << "Layer: " << (l+1) << endl;
         for(int epoch=0; epoch<conf.epoch; epoch++)
         {
             double error = 0;
             for(int i=0; i<n_samples; i++)
             {
-                // rbm v
-                // some x may be computed many times
-                // which may be replaced by DP algoritham
-                for(int j=0; j<=l; j++)
+                if(l == 0)
                 {
-                    if(j == 0)
-                    {
-                        rbm_input = new double[n_features];
-                        for(int f=0; f<n_features; f++)
-                            rbm_input[f] = data.X[i][f];
-                    }
-                    else
-                    {
-                        if(j == 1)
-                            pre_size = n_features;
-                        else
-                            pre_size = hidden_layer_size[j-2];
-                        pre_rbm_input = new double[pre_size];
+                    rbm_input = new double[n_features];
+                    for(int f=0; f<n_features; f++)
+                        rbm_input[f] = data.X[i][f];
+                }
+                else
+                {
+                    rbm_input = new double[hidden_layer_size[l-1]];
+                    for(int f=0; f<hidden_layer_size[l-1]; f++)
+                        rbm_input[f] = xlayer[i][f];
 
-                        for(int f=0; f<pre_size; f++)
-                            pre_rbm_input[f] = rbm_input[f];
-                        delete[] rbm_input;
-
-                        rbm_input = new double[hidden_layer_size[j-1]];
-                        rbm_layers[j-1]->activate_hidden(pre_rbm_input, rbm_input, NULL, pre_size, hidden_layer_size[j-1]);
-                        delete[] pre_rbm_input;
-                    }
                 }
                 rbm_layers[l]->train(rbm_input, conf.learning_rate, conf.cd_k);
                 error += rbm_layers[l]->error;
             }
             cout << "Layer: " << (l+1) << ", Epoch: " << epoch << ", Error: " << error << endl;
-        }
+        }// end one layer
 
+        //save the samples
+        x_l[0]='\0';
+        sprintf(x_l, "%s%d", str, (l+2));
+        ofstream fout(x_l);
+        if(l == 0)
+            pre_size = n_features;
+        else
+            pre_size = hidden_layer_size[l-1];
+        pre_rbm_input = new double[pre_size];
+        for(int i=0; i<n_samples; i++)
+        {
+            for(int f=0; f<pre_size; f++)
+            {
+                if(l == 0)
+                    pre_rbm_input[f] =  data.X[i][f];
+                else
+                    pre_rbm_input[f] =  xlayer[i][f];
+            }
+            rbm_input = new double[hidden_layer_size[l]];
+            rbm_layers[l]->activate_hidden(pre_rbm_input, rbm_input, NULL, pre_size, hidden_layer_size[l]);
+            for(int f=0; f<hidden_layer_size[l]; f++)
+            {
+                fout << rbm_input[f] << " ";
+            }
+            fout << endl;
+            delete[] rbm_input;
+        }
+        delete[] pre_rbm_input;
+        fout << flush;
+        fout.close();
+        if(l > 0)
+            vector<vector<double> >().swap(xlayer);
+    }//rbm layers end
+
+    // logistic layer training
+    data.reloadx(conf, x_l, xlayer);
+    pre_size = lr_layer->n_features;
+    rbm_input = new double[pre_size];
+
+    for(int epoch=0; epoch<conf.epoch; epoch++)
+    {
+        for(int i=0; i<n_samples; i++)
+        {
+            int *train_y = new int[lr_layer->n_labels];
+            for(int yi=0; yi<lr_layer->n_labels; yi++)
+                train_y[yi] = 0;
+            train_y[int(data.Y[i])] = 1;
+            for(int f=0; f<pre_size; f++)
+                rbm_input[f] = xlayer[i][f];
+
+            //
+            lr_layer->train(rbm_input, train_y, conf.learning_rate);
+        }
+        cout << "Layer: logistic layer, Epoch: " << epoch  << endl;
     }
+    delete[] rbm_input;
+
 }
 void DBN::finetune(Dataset data, Conf conf)
 {
@@ -545,11 +683,14 @@ void DBN::finetune(Dataset data, Conf conf)
     double *pre_layer_input = NULL;
     int pre_size;
 
-    for(int epoch=0; epoch<1; epoch++)
+    for(int epoch=0; epoch<conf.epoch; epoch++)
     {
         //ofstream fout("./model/x.txt");
         for(int i=0; i<n_samples; i++)
         {
+            vector<vector<double> > ai;
+            vector<vector<double> > deltai;
+
             int *train_y = new int[n_labels];
             for(int yi=0; yi<n_labels; yi++)
                 train_y[yi] = 0;
@@ -578,20 +719,89 @@ void DBN::finetune(Dataset data, Conf conf)
                 layer_input = new double[hidden_layer_size[j]];
                 rbm_layers[j]->activate_hidden(pre_layer_input, layer_input, NULL, pre_size, hidden_layer_size[j]);
                 delete[] pre_layer_input;
-
+                vector<double> al;
+                for(int ia=0; ia<hidden_layer_size[j]; ia++)
+                    al.push_back(layer_input[ia]);
+                ai.push_back(al);
+                vector<double>().swap(al);
             }
             ///////////
-           // for(int ii=0; ii<hidden_layer_size[n_layers-1]; ii++)
-             //   fout << layer_input[ii] << " ";
+            // for(int ii=0; ii<hidden_layer_size[n_layers-1]; ii++)
+            //   fout << layer_input[ii] << " ";
             //fout << int(data.Y[i]) << endl;
             /////////
+            
+            //output layer
+            //in http://deeplearning.stanford.edu/wiki/index.php/Fine-tuning_Stacked_AEs
+            double *pred_y = new double[lr_layer->n_labels];
+            lr_layer->predict(layer_input, pred_y);
+            vector<double> di0;
+            for(int j=0; j<lr_layer->n_labels; j++)
+                di0.push_back(-1*(train_y[j] - pred_y[j]) * pred_y[j] * (1 - pred_y[j]));
+            deltai.push_back(di0);
+            vector<double>().swap(di0);
+            // update the parameters in LR layer
+            //lr_layer->train(layer_input, train_y, conf.learning_rate);
+            
+            // hidden layer
+            for(int l=n_layers; l>=0; l--)
+            {
+                if(l == n_layers)
+                {
+                    vector<double> di;
+                    for(int j=0; j<lr_layer->n_features; j++)
+                    {
+                        double di_tmp = 0;
+                        for(int f=0; f<lr_layer->n_labels; f++)
+                        {
+                            di_tmp += lr_layer->W[f][j] * deltai[n_layers-l][f];
+                        }
+                        di_tmp *= ai[l-1][j] * (1 -  ai[l-1][j]);
+                        di.push_back(di_tmp);
+                    }
+                    deltai.push_back(di);
+                    vector<double>().swap(di);
+                }
+                else
+                {
+                    vector<double> di;
+                    for(int j=0; j<rbm_layers[l]->n_visible; j++)
+                    {
+                        double di_tmp = 0;
+                        for(int f=0; f<rbm_layers[l]->n_hidden; f++)
+                        {
+                            di_tmp += rbm_layers[l]->W[f][j] * deltai[n_layers-l][f];
+                        }
+                        di_tmp *= ai[l-1][j] * (1 -  ai[l-1][j]);
+                        di.push_back(di_tmp);
+                    }
+                    deltai.push_back(di);
+                    vector<double>().swap(di);
+                }
+            }// end deltai
 
+            // update hidden layer parameters
+            for(int l=0; l<n_layers; l++)
+            {
+                for(int j=0; j<rbm_layers[l]->n_hidden; j++)
+                {
+                    for(int f=0; f<rbm_layers[l]->n_visible; f++)
+                    {
+                         rbm_layers[l]->W[j][f] -= alpha*(deltai[n_layers-l][j]*ai[l][f] + lamda * rbm_layers[l]->W[j][f]); 
+                    }
+                    rbm_layers[l]->hbias[j] -= alpha * deltai[n_layers-l][j];
+                }
+            }
+            // update the parameters in LR layer
             lr_layer->train(layer_input, train_y, conf.learning_rate);
-        }
+            
+
+        }//end xi
         ////////////
         //fout << flush;fout.close();
-    }
+    }//end epoch
     cout << "Fine-tuning done." << endl;
+
 }
 int DBN::predict(double *x, double *pred_y, int true_label)
 { 

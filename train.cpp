@@ -7,12 +7,12 @@ int main(int argc, const char *argv[])
 {
     string ftx = "./data/test_x.txt";
     string fty = "./data/test_y.txt";
-    int epoch = 100;
+    int epoch = 3;
     int batch_size = 0;
     double gamma = 0.1; // learning rate
     int k = 1; //Contrastive Divergence k
 
-    int hls[] = {400, 400, 100};
+    int hls[] = {4,9, 16};
     int n_layers = sizeof(hls) / sizeof(hls[0]);
     int n_lables = 10;
     double lbd = 0.1;

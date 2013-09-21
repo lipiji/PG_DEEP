@@ -50,6 +50,7 @@ class Dataset
 		int batch_index;
 		Dataset(Conf);
 		~Dataset();
+        void reloadx(Conf, char*, vector<vector<double> >&);
 };
 
 class RBM
@@ -94,6 +95,8 @@ class DBN
 		int n_layers;
 		int n_labels;
 		int *hidden_layer_size;
+        double lamda;
+        double alpha;
 		RBM **rbm_layers;
         LR *lr_layer;
 		DBN(Dataset, Conf);
