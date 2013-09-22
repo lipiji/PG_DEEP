@@ -277,12 +277,14 @@ Dataset::~Dataset()
     vector<vector<double> >().swap(X);
     vector<double>().swap(Y);
 }
-RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb)
+RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb, double lbd, double mmt)
 {
     n_samples = N;
     n_visible = n_f;
     n_hidden = n_h;
     error = 0.0;
+    lamda = lbd;
+    momentum = mmt;
 
     if(w == NULL)
     {
@@ -420,7 +422,7 @@ void RBM::train(double *x, double gamma, int cd_k)
     {
         for(int j=0; j<n_visible; j++)
         {
-            W[i][j] += gamma * (x[j] * pos_h_prob[i] - neg_v_prob[j] * neg_h_prob[i]) / n_samples; 
+            W[i][j] += gamma * ((x[j] * pos_h_prob[i] - neg_v_prob[j] * neg_h_prob[i]) / n_samples - lamda * W[i][j]); 
         }
         hbias[i] += gamma * (pos_h_prob[i] - neg_h_prob[i]) / n_samples;
     }
@@ -564,11 +566,11 @@ DBN::DBN(Dataset data, Conf conf)
         hidden_layer_size[i] = conf.hidden_layer_size[i];
         if(i == 0)
         {
-            rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL);
+            rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL, conf.lamda, 0);
         }
         else
         {
-            rbm_layers[i] = new RBM(n_samples, hidden_layer_size[i-1], hidden_layer_size[i],  NULL, NULL, NULL);
+            rbm_layers[i] = new RBM(n_samples, hidden_layer_size[i-1], hidden_layer_size[i],  NULL, NULL, NULL, conf.lamda, 0);
         }
     }
 

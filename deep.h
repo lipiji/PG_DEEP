@@ -63,8 +63,10 @@ class RBM
 		double *hbias;
 		double *vbias;
         double error;
+        double lamda;
+        double momentum;
 
-		RBM(int, int, int,  double**, double*, double*);
+		RBM(int, int, int,  double**, double*, double*, double, double);
 		~RBM();
 		void train(double*, double, int);
 		void activate_hidden(double*, double*, int*, int, int);

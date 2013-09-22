@@ -15,7 +15,7 @@ int main(int argc, const char *argv[])
     int hls[] = {400, 400, 900};
     int n_layers = sizeof(hls) / sizeof(hls[0]);
     int n_lables = 10;
-    double lbd = 0.2;
+    double lbd = 0.002; // weight cost
 
     Conf conf(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables, lbd);
     Dataset data(conf);
