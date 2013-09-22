@@ -1,7 +1,8 @@
 Deep Learning and It's Applications
-Piji Li, Ø§×Ó
+Piji Li, ä¸•å­ 
 lipiji.sdu@gmail.com
-zhizhihu.com
+http://weibo.com/pagecn
+http://www.zhizhihu.com
 
 Reference:
 [1] A fast learning algorithm for deep belief nets
