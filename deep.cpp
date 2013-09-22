@@ -553,7 +553,6 @@ DBN::DBN(Dataset data, Conf conf)
 {
     n_samples = data.N;
     n_features = data.n_f;
-    hidden_layer_size = conf.hidden_layer_size;
     n_layers = conf.n_layers;
     n_labels = conf.n_labels;
     lamda = conf.lamda;
@@ -562,6 +561,7 @@ DBN::DBN(Dataset data, Conf conf)
     rbm_layers = new RBM*[n_layers];
     for(int i=0; i<n_layers; i++)
     {
+        hidden_layer_size[i] = conf.hidden_layer_size[i];
         if(i == 0)
         {
             rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL);
@@ -705,6 +705,13 @@ void DBN::finetune(Dataset data, Conf conf)
                     pre_layer_input = new double[pre_size];
                     for(int f=0; f<pre_size; f++)
                         pre_layer_input[f] = data.X[i][f];
+                    
+                    //a0 = v0
+                    vector<double> al;
+                    for(int ia=0; ia<pre_size; ia++)
+                        al.push_back(pre_layer_input[ia]);
+                    ai.push_back(al);
+                    vector<double>().swap(al);
                 }
                 else
                 {
@@ -730,7 +737,7 @@ void DBN::finetune(Dataset data, Conf conf)
             //   fout << layer_input[ii] << " ";
             //fout << int(data.Y[i]) << endl;
             /////////
-            
+
             //output layer
             //in http://deeplearning.stanford.edu/wiki/index.php/Fine-tuning_Stacked_AEs
             double *pred_y = new double[lr_layer->n_labels];
@@ -742,7 +749,7 @@ void DBN::finetune(Dataset data, Conf conf)
             vector<double>().swap(di0);
             // update the parameters in LR layer
             //lr_layer->train(layer_input, train_y, conf.learning_rate);
-            
+
             // hidden layer
             for(int l=n_layers; l>=0; l--)
             {
@@ -756,7 +763,7 @@ void DBN::finetune(Dataset data, Conf conf)
                         {
                             di_tmp += lr_layer->W[f][j] * deltai[n_layers-l][f];
                         }
-                        di_tmp *= ai[l-1][j] * (1 -  ai[l-1][j]);
+                        di_tmp *= ai[l][j] * (1 -  ai[l][j]);
                         di.push_back(di_tmp);
                     }
                     deltai.push_back(di);
@@ -772,14 +779,13 @@ void DBN::finetune(Dataset data, Conf conf)
                         {
                             di_tmp += rbm_layers[l]->W[f][j] * deltai[n_layers-l][f];
                         }
-                        di_tmp *= ai[l-1][j] * (1 -  ai[l-1][j]);
+                        di_tmp *= ai[l][j] * (1 -  ai[l][j]);
                         di.push_back(di_tmp);
                     }
                     deltai.push_back(di);
                     vector<double>().swap(di);
                 }
             }// end deltai
-
             // update hidden layer parameters
             for(int l=0; l<n_layers; l++)
             {
@@ -787,18 +793,17 @@ void DBN::finetune(Dataset data, Conf conf)
                 {
                     for(int f=0; f<rbm_layers[l]->n_visible; f++)
                     {
-                         rbm_layers[l]->W[j][f] -= alpha*(deltai[n_layers-l][j]*ai[l][f] + lamda * rbm_layers[l]->W[j][f]); 
+                        rbm_layers[l]->W[j][f] -= alpha*(deltai[n_layers-l][j]*ai[l][f] + lamda * rbm_layers[l]->W[j][f]); 
                     }
                     rbm_layers[l]->hbias[j] -= alpha * deltai[n_layers-l][j];
                 }
             }
             // update the parameters in LR layer
             lr_layer->train(layer_input, train_y, conf.learning_rate);
-            
-
         }//end xi
         ////////////
         //fout << flush;fout.close();
+        cout << "Fine-tuning epoch: " << epoch <<endl;
     }//end epoch
     cout << "Fine-tuning done." << endl;
 
