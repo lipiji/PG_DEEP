@@ -4,6 +4,9 @@ lipiji.sdu@gmail.com
 http://weibo.com/pagecn
 http://www.zhizhihu.com
 
+DBN: finished;
+DNN: .....;
+
 Reference:
 [1] A fast learning algorithm for deep belief nets
 [2] A Practical Guide to Training Restricted Boltzmann Machines
