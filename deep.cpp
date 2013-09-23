@@ -1,7 +1,10 @@
 //**********************
+// Deep Learning and Applications
+// Piji Li
 // lipiji.sdu@gmail.com
-// 2013-06-25
-//*********************/ 
+// http://www.zhizhihu.com
+//*********************/
+
 #include "deep.h"
 
 double sample_from_gaussian(double miu, double sigma)
