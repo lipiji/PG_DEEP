@@ -422,13 +422,13 @@ void RBM::train(double *x, double gamma, int cd_k)
     {
         for(int j=0; j<n_visible; j++)
         {
-            W[i][j] += gamma * ((x[j] * pos_h_prob[i] - neg_v_prob[j] * neg_h_prob[i]) / n_samples - lamda * W[i][j]); 
+            W[i][j] += momentum * 0 + gamma * ((x[j] * pos_h_prob[i] - neg_v_prob[j] * neg_h_prob[i]) / 1 - lamda * W[i][j]); 
         }
-        hbias[i] += gamma * (pos_h_prob[i] - neg_h_prob[i]) / n_samples;
+        hbias[i] += momentum * 0 + gamma * (pos_h_prob[i] - neg_h_prob[i]) / 1;
     }
     for(int i=0; i<n_visible; i++)
     {
-        vbias[i] += gamma * (x[i] - neg_v_prob[i]) / n_samples;
+        vbias[i] += momentum * 0 + gamma * (x[i] - neg_v_prob[i]) / 1; // 1 is #samples
     }
 
     error = square_error(x, neg_v_prob, n_visible);
@@ -566,11 +566,11 @@ DBN::DBN(Dataset data, Conf conf)
         hidden_layer_size[i] = conf.hidden_layer_size[i];
         if(i == 0)
         {
-            rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL, conf.lamda, 0);
+            rbm_layers[i] = new RBM(n_samples, n_features, hidden_layer_size[i], NULL, NULL, NULL, conf.lamda, 0.5);
         }
         else
         {
-            rbm_layers[i] = new RBM(n_samples, hidden_layer_size[i-1], hidden_layer_size[i],  NULL, NULL, NULL, conf.lamda, 0);
+            rbm_layers[i] = new RBM(n_samples, hidden_layer_size[i-1], hidden_layer_size[i],  NULL, NULL, NULL, conf.lamda, 0.5);
         }
     }
 
@@ -596,6 +596,11 @@ void DBN::pretrain(Dataset data, Conf conf)
         cout << "Layer: " << (l+1) << endl;
         for(int epoch=0; epoch<conf.epoch; epoch++)
         {
+            if(epoch < 5)
+                rbm_layers[l]->momentum = 0.5;
+            else
+                rbm_layers[l]->momentum = 0.9;
+
             double error = 0;
             for(int i=0; i<n_samples; i++)
             {
@@ -685,7 +690,7 @@ void DBN::finetune(Dataset data, Conf conf)
     double *pre_layer_input = NULL;
     int pre_size;
 
-    for(int epoch=0; epoch<conf.epoch; epoch++)
+    for(int epoch=0; epoch<conf.epoch/2; epoch++)
     {
         //ofstream fout("./model/x.txt");
         for(int i=0; i<n_samples; i++)

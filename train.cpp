@@ -20,30 +20,37 @@ int main(int argc, const char *argv[])
     Conf conf(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables, lbd);
     Dataset data(conf);
 
-    /* test rbm
-       RBM rbm(data.N, data.n_f, conf.n_h, NULL, NULL, NULL);
+    /*// test rbm
+      RBM rbm(data.N, data.n_f, 400, NULL, NULL, NULL, lbd, 0);
 
-       for(int i=0; i<epoch; i++)
-       {
-       cout << "epoch: " << i << endl;
-       for(int j=0; j<data.N; j++)
-       rbm.train(data.X[j], gamma, k);
-
-       ofstream fout("./model/W.txt");
-       for(int j=0; j<rbm.n_visible; j++)
-       {
-       for(int l=0; l<rbm.n_hidden; l++)
-       {
-       fout << rbm.W[l][j] << " ";
-       }
-       fout << endl;
-       }
-       fout << flush;
-       fout.close();
+      for(int i=0; i<epoch; i++)
+      {
+      cout << "epoch: " << i << endl;
+      for(int j=0; j<data.N; j++)
+      {
+      double *x = new double[data.n_f];
+      for(int f=0; f<data.n_f; f++)
+      x[f] = data.X[j][f];
+      rbm.train(x, gamma, k);
+      delete[] x;
 
 
-       }*/	
+      }
+      ofstream fout("./model/W1");
+      for(int j=0; j<rbm.n_visible; j++)
+      {
+      for(int l=0; l<rbm.n_hidden; l++)
+      {
+      fout << rbm.W[l][j] << " ";
+      }
+      fout << endl;
+      }
+      fout << flush;
+      fout.close();
 
+
+      }
+      */
     //test lr
 
     /*
@@ -79,6 +86,7 @@ int main(int argc, const char *argv[])
        delete[] y;
        }
        */
+
 
     DBN dbn(data, conf);
     dbn.pretrain(data, conf);
