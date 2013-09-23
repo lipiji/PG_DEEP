@@ -300,7 +300,7 @@ RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb, double lbd
     }
     else
     {
-        W = w;
+        W = w; // bug
     }
 
     if(hb == NULL)
