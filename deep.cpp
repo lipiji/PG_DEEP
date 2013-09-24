@@ -564,6 +564,7 @@ DBN::DBN(Dataset data, Conf conf)
     alpha = conf.learning_rate;
 
     rbm_layers = new RBM*[n_layers];
+    hidden_layer_size = new int[n_layers];
     for(int i=0; i<n_layers; i++)
     {
         hidden_layer_size[i] = conf.hidden_layer_size[i];
@@ -693,7 +694,7 @@ void DBN::finetune(Dataset data, Conf conf)
     double *pre_layer_input = NULL;
     int pre_size;
 
-    for(int epoch=0; epoch<conf.epoch/2; epoch++)
+    for(int epoch=0; epoch<conf.epoch; epoch++)
     {
         //ofstream fout("./model/x.txt");
         for(int i=0; i<n_samples; i++)

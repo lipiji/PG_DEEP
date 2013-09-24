@@ -15,10 +15,10 @@ int main(int argc, const char *argv[])
     double gamma = 0.1; // learning rate
     int k = 1; //Contrastive Divergence k
 
-    int hls[] = {400, 400, 900};
+    int hls[] = {500, 500, 900};
     int n_layers = sizeof(hls) / sizeof(hls[0]);
     int n_lables = 10;
-    double lbd = 0.002; // weight cost
+    double lbd = 0.0002; // weight cost
 
     Conf conf(ftx, fty, epoch, batch_size, hls, k, gamma, n_layers, n_lables, lbd);
     Dataset data(conf);
