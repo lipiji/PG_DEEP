@@ -138,10 +138,10 @@ inline CMat<T> CMat<T>::operator*(const CMat<T>& b)
     if(col == b.row)
     {    
         CMat<T> c(row, b.col);
-        #pragma omp parallel for
+        
         for(int i=0; i<row; i++)
         {
-            #pragma omp parallel for
+            
             for(int k=0; k<b.col; k++)
             {
                 for(int j=0; j<b.col; j++)
