@@ -622,6 +622,7 @@ void DBN::pretrain(Dataset data, Conf conf)
 
                 }
                 rbm_layers[l]->train(rbm_input, conf.learning_rate, conf.cd_k);
+                delete[] rbm_input;
                 error += rbm_layers[l]->error;
             }
             cout << "Layer: " << (l+1) << ", Epoch: " << epoch << ", Error: " << error << endl;
