@@ -300,7 +300,7 @@ RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb, double lbd
     }
     else
     {
-        W = w; // bug
+        W = w;
     }
 
     if(hb == NULL)
@@ -759,8 +759,6 @@ void DBN::finetune(Dataset data, Conf conf)
                 di0.push_back(-1*(train_y[j] - pred_y[j]) * pred_y[j] * (1 - pred_y[j]));
             deltai.push_back(di0);
             vector<double>().swap(di0);
-            // update the parameters in LR layer
-            //lr_layer->train(layer_input, train_y, conf.learning_rate);
 
             // hidden layer
             for(int l=n_layers; l>=0; l--)
@@ -812,6 +810,12 @@ void DBN::finetune(Dataset data, Conf conf)
             }
             // update the parameters in LR layer
             lr_layer->train(layer_input, train_y, conf.learning_rate);
+            
+            vector<vector<double> >().swap(ai);
+            vector<vector<double> >().swap(deltai);
+            delete[] train_y;
+            delete[] pred_y;
+            delete[] layer_input;
         }//end xi
         ////////////
         //fout << flush;fout.close();
