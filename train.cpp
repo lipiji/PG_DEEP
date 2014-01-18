@@ -93,21 +93,36 @@ int main(int argc, const char *argv[])
 
     DBN dbn(data, conf);
     dbn.pretrain(data, conf);
-    for(int i=0; i<n_layers; i++)
+    for(int i=0; i<=n_layers; i++)
     {
         char str[] = "./model/W";
         char W_l[128];
         sprintf(W_l, "%s%d", str, (i+1));
 
         ofstream fout(W_l);
-        for(int j=0; j<dbn.rbm_layers[i]->n_visible; j++)
+        if(i < n_layers)
         {
-            for(int l=0; l<dbn.rbm_layers[i]->n_hidden; l++)
+            for(int j=0; j<dbn.rbm_layers[i]->n_visible; j++)
             {
-                fout << dbn.rbm_layers[i]->W[l][j] << " ";
+                for(int l=0; l<dbn.rbm_layers[i]->n_hidden; l++)
+                {
+                    fout << dbn.rbm_layers[i]->W[l][j] << " ";
+                }
+                fout << endl;
             }
-            fout << endl;
         }
+        else
+        {
+            for(int j=0; j<dbn.lr_layer->n_features; j++)
+            {
+                for(int l=0; l<dbn.lr_layer->n_labels; l++)
+                {
+                    fout << dbn.lr_layer->W[l][j] << " ";
+                }
+                fout << endl;
+            }
+        }
+
         fout << flush;
         fout.close();
 
@@ -132,6 +147,8 @@ int main(int argc, const char *argv[])
 
         if(dbn.predict(x, y, true_label) == 1)
             acc_num++;
+        delete[] x;
+        delete[] y;
 
         cout << j <<": Accuracy=" << acc_num/(j+1) <<endl;
     }

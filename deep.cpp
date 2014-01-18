@@ -326,10 +326,6 @@ RBM::RBM(int N, int n_f, int n_h, double **w, double *hb, double *vb, double lbd
 void RBM::activate_hidden(double *v_prob, double *h_prob, int *h_state, int n_visible, int n_hidden)
 {	
     //v->h
-    if(h_prob == NULL)
-        h_prob = new double[n_hidden];
-    if(h_state == NULL)
-        h_state = new int[n_hidden];	
     for(int i=0; i<n_hidden; i++)
     {
         double vh_prob = 0;
@@ -340,17 +336,14 @@ void RBM::activate_hidden(double *v_prob, double *h_prob, int *h_state, int n_vi
         }
         vh_prob += hbias[i];
         h_prob[i] = sigmoid(vh_prob);
-        h_state[i] = binomial(1, h_prob[i]);
+        if(h_state != NULL)
+            h_state[i] = binomial(1, h_prob[i]);
     }
 
 }
 void RBM::activate_visible(int *h_state, double *v_prob, int *v_state, int n_hidden, int n_visible)
 {	
     //h->v
-    if(v_prob == NULL)
-        v_prob = new double[n_visible];
-    if(v_state == NULL)
-        v_state = new int[n_visible];	
     for(int i=0; i<n_visible; i++)
     {
         double hv_prob = 0;
@@ -377,47 +370,14 @@ void RBM::train(double *x, double gamma, int cd_k)
     // A Practical Guide to Training Restricted Boltzmann Machines
 
     // postive phase
-    for(int i=0; i<n_hidden; i++)
-    {
-        double h_prob = 0;
-        for(int j=0; j<n_visible; j++)
-        {
-            h_prob += x[j] * W[i][j];
-        }
-        h_prob += hbias[i];
-
-        pos_h_prob[i] = sigmoid(h_prob);
-        pos_h_state[i] = binomial(1, pos_h_prob[i]);
-    }
+    activate_hidden(x, pos_h_prob, pos_h_state, n_visible, n_hidden);
     // negative phase
     for(int k=1; k<=cd_k; k++)
     {
         //h0->v1
-        for(int i=0; i<n_visible; i++)
-        {
-            double v_prob = 0;
-            for(int j=0; j<n_hidden; j++)
-            {
-                v_prob += pos_h_state[j] * W[j][i];
-            }
-            v_prob += vbias[i];
-            neg_v_prob[i] = sigmoid(v_prob);
-            neg_v_state[i] = binomial(1, neg_v_prob[i]);
-        }	
+        activate_visible(pos_h_state, neg_v_prob, neg_v_state, n_hidden, n_visible);
         //v1->h1	
-        for(int i=0; i<n_hidden; i++)
-        {
-            double h_prob = 0;
-            for(int j=0; j<n_visible; j++)
-            {
-                // prob or state?
-                h_prob += neg_v_prob[j] * W[i][j];
-            }
-            h_prob += hbias[i];
-
-            neg_h_prob[i] = sigmoid(h_prob);
-            neg_h_state[i] = binomial(1, neg_h_prob[i]);
-        }
+        activate_hidden(neg_v_prob, neg_h_prob, neg_h_state, n_visible, n_hidden);
 
     }
     // update parameters
@@ -684,7 +644,6 @@ void DBN::pretrain(Dataset data, Conf conf)
         cout << "Layer: logistic layer, Epoch: " << epoch  << endl;
     }
     delete[] rbm_input;
-
 }
 void DBN::finetune(Dataset data, Conf conf)
 {
@@ -759,7 +718,7 @@ void DBN::finetune(Dataset data, Conf conf)
                 di0.push_back(-1*(train_y[j] - pred_y[j]) * pred_y[j] * (1 - pred_y[j]));
             deltai.push_back(di0);
             vector<double>().swap(di0);
-
+            
             // hidden layer
             for(int l=n_layers; l>=0; l--)
             {
@@ -796,6 +755,7 @@ void DBN::finetune(Dataset data, Conf conf)
                     vector<double>().swap(di);
                 }
             }// end deltai
+
             // update hidden layer parameters
             for(int l=0; l<n_layers; l++)
             {
@@ -813,10 +773,13 @@ void DBN::finetune(Dataset data, Conf conf)
             
             vector<vector<double> >().swap(ai);
             vector<vector<double> >().swap(deltai);
+
             delete[] train_y;
             delete[] pred_y;
             delete[] layer_input;
         }//end xi
+
+
         ////////////
         //fout << flush;fout.close();
         cout << "Fine-tuning epoch: " << epoch <<endl;
@@ -854,8 +817,8 @@ int DBN::predict(double *x, double *pred_y, int true_label)
         layer_input = new double[hidden_layer_size[j]];
         rbm_layers[j]->activate_hidden(pre_layer_input, layer_input, NULL, pre_size, hidden_layer_size[j]);
         delete[] pre_layer_input;
-
     }
+    delete[] layer_input;
 
     for(int i=0; i<lr_layer->n_labels; i++)
     {
