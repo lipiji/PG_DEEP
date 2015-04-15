@@ -1,6 +1,6 @@
 Deep Learning and It's Applications
 Piji Li, 丕子 
-lipiji.sdu@gmail.com
+pagelee.sd@gmail.com
 http://weibo.com/pagecn
 http://www.zhizhihu.com
 
