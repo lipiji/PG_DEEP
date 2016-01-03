@@ -1,8 +1,4 @@
 Deep Learning and It's Applications
-Piji Li, 丕子 
-pagelee.sd@gmail.com
-http://weibo.com/pagecn
-http://www.zhizhihu.com
 
 DBN: finished;
 DNN: .....;
@@ -12,6 +8,3 @@ Reference:
 [2] A Practical Guide to Training Restricted Boltzmann Machines
 [3] https://github.com/yusugomori/DeepLearning
 
-Code Style:
-Too young, too simple, sometimes naive.
-If any problem, please let me know.
